@@ -3,7 +3,7 @@ name: Build and Generate Assets
 on:
   push:
     tags:
-      - 'v*..' # Triggers on version tags like v1.0.0
+      - 'v*.*.*' # Triggers on version tags like v1.0.0
 
 jobs:
   build:
@@ -24,11 +24,46 @@ jobs:
     - name: Build project
       run: npm run build
 
-    - name: Generate assets
-      run: npm run generate-assets
+    - name: Generate zip file
+      run: npm run zip
 
-    - name: Upload assets
+    - name: Upload release assets
       uses: actions/upload-artifact@v3
       with:
-        name: build-assets
-        path: path/to/generated/assets # Adjust this path to your assets location
+        name: dash.zip
+        path: dash.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Download build artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: dash.zip
+        path: dash.zip
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/dash.zip
+        asset_name: dash.zip
+        asset_content_type: application/zip
